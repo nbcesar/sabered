@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block style_block %}
+    <style type="text/css">
+        table.table { width: 60%; }
+    </style>
+{% endblock %}
+
+{% block content %}
+
+<h1 id="">All Tests</h1>
+<div>&nbsp;</div>
+<table class="table table-bordered table-striped">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>MC</th>
+        <th>OR</th>
+        <th>Students</th>
+        <th>Added by</th>
+        <th>Added on</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for test in tests %}
+    {% set test_id = test.key.id() %}
+    <tr>
+        <td>{{ test_id }}</td>
+        <td>{{ test.test_name }}</td>
+        <td>{{ test.num_mc }}</td>
+        <td>{{ test.num_or }}</td>
+        <td>{{ test.num_students }}</td>
+        <td>{{ test.added_by }}</td>
+        <td class="nowrap">{{ test.timestamp.strftime('%b %d, %Y %I:%M %p') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7">No tests yet</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock content %}

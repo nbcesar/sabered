@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block style_block %}
+    <style type="text/css">
+        table.table { width: 60%; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-3 col-md-2 sidebar">
+            {% include 'includes/sidebar.html' %} {# pull in sidebar #}
+        </div><!--div sidebar-->
+
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+            {% include 'includes/flash_message.html' %} {# page-level feedback notices #}
+            
+            <p>
+                <!--<li class="active"><a class="btn btn-primary" data-toggle="modal" data-target="#new-test-modal">
+                    <i class="icon-plus-sign icon-white"></i>
+                    New Test
+                </a></li>-->
+            </p>
+            <h2 id="">All Tests</h2>
+            
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <!-- <th>ID</th> -->
+                        <th>Name</th>
+                        <th># MC</th>
+                        <th># OR</th>
+                        <th># Students</th>
+                        <!-- <th>Added By</th> -->
+                        <th>Added on</th>
+                        <th>Details</th>
+                        <th>Analysis</th>
+                        <th>Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for test in tests %}
+                    {% set test_id = test.key.id() %}
+                    <tr>
+                        <!-- <td>{{ test_id }}</td>< -->
+                        <td>{{ test.test_name }}</td>
+                        <td>{{ test.num_mc }}</td>
+                        <td>{{ test.num_or }}</td>
+                        <td>{{ test.num_students }}</td>
+                        <!-- <td>{{ test.added_by }}</td> -->
+                        <!-- <td class="nowrap">{{ test.timestamp.strftime('%b %d, %Y %I:%M %p') }}</td> -->
+                        <td class="nowrap">{{ test.timestamp.strftime('%b %d, %Y') }}</td>
+                        <td>
+                            <a href="{{ url_for('test_details', test_id=test_id) }}" class="btn btn-success">Edit</a>
+                            
+                        </td>
+                        <td>
+                            <a href="{{ url_for('analysis', test_id=test_id) }}" class="btn btn-info">Analysis</a>
+                        </td>
+                        <td>
+                            <form method="post" action="{{ url_for('delete_test', test_id=test_id) }}">
+                                <button class="btn btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10">No tests yet</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div><!--div main-->
+        <!--<div class="col-sm-3 col-md-3 rightbar">
+            <h4>Trends</h4>
+        </div> div rightbar --> 
+    </div> <!--div row -->
+</div><!--div container-->
+    {% include 'new_test.html' %} {# pull in new_test form (modal dialog) #}
+
+{% endblock content %}
+
+{% block tail_script %}
+    <script>
+        var FormHelpers = {
+            validate: function (form, evt) {
+                // Form validation for modal dialog
+                var test_name = form.find('#test_name').val();
+                var num_mc = form.find('#num_mc').val();
+                var num_or = form.find('#num_or').val();
+                var num_students = form.find('#num_students').val();
+                if (!(test_name)) {
+                    evt.preventDefault();
+                    Utils.renderFieldErrorTooltip('#test_name', 'Name is required', 'right');
+                }
+                if (!(num_mc)) {
+                    evt.preventDefault();
+                    Utils.renderFieldErrorTooltip('#num_mc', 'Num MC is required', 'right');
+                }
+                if (!(num_or)) {
+                    evt.preventDefault();
+                    Utils.renderFieldErrorTooltip('#num_or', 'Num OR is required', 'right');
+                }
+                if (!(num_students)) {
+                    evt.preventDefault();
+                    Utils.renderFieldErrorTooltip('#num_students', 'Num Students is required', 'right');
+                }
+            },
+            init: function () {
+                var self = this;
+                var test_form = $('#new-test-form');
+                test_form.on('submit', function (evt) {
+                    self.validate(test_form, evt)
+                });
+            }
+        };
+        $(document).ready(function() {
+            FormHelpers.init();
+        });
+    </script>
+{% endblock tail_script %}

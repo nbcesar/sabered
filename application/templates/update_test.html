@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% block style_block %}
+    <link href="/static/css/jquery.handsontable.full.css" rel="stylesheet" />
+    <link href="/static/css/jquery.handsontable.bootstrap.css" rel="stylesheet" />
+
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <!--<h4 class="grid">Test Name: {{ test.test_name}}</h4>-->
+    <p></p>
+    <div class="row grid">
+        <div class="col-md-12">
+            <div id="hot" class="handsontable" style="overflow: scroll"></div>
+        </div> 
+     <!--   <div class="col-md-2 results">
+            <h4>{{ test.test_name}}</h4>
+        </div> -->
+    </div> <!-- row -->
+</div> <!-- containter -->
+
+{% endblock content %}
+
+
+{% block tail_script %}
+
+<script>
+    
+/* 
+ * Global Variables
+ */
+// Student ID is a hidden column -> more could be added in the future
+var hidden_columns = 1;
+// Number of multiple choice questions
+var num_mc = {{test.num_mc}};
+// Number of multiple choice options (1,2,3,4,etc)
+var mc_answers = {{test.mc_answers}};
+// Number of open response questions
+var num_or = {{test.num_or}};
+// Worth of each open response question
+var or_points = {{test.or_points}};
+// Finds max between num_mc and or_points -> used to know how many answer % rows exist
+var num_answer_rows = Math.max(mc_answers, or_points);
+// Total number of questions
+var total_questions = num_mc + num_or;
+// Number of students
+var num_students = {{test.num_students}};
+// The grid -> test data -> 2D array
+var data = {{data|safe}};
+var grid;
+var questionData;
+/* 
+ * Column Headers
+ */
+var colHeaders = ["Student","%"];
+// Push MC question numbers to Column Headers
+for (var a = 1; a <= num_mc; a++) {
+    colHeaders.push(a);
+}
+colHeaders.push("MC %");
+for (var a = (num_mc + 1); a <= total_questions; a++) {
+    colHeaders.push(a);
+}
+colHeaders.push("OR %");
+
+/* 
+ * Custom Renderers
+ */
+var firstColsRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+  Handsontable.renderers.TextRenderer.apply(this, arguments);
+  $(td).css({
+    fontWeight: 'bold',
+    color: 'black',
+    verticalAlign: 'middle',
+  });
+};
+
+var percentRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+  Handsontable.renderers.NumericRenderer.apply(this, arguments);
+  $(td).css({
+    fontWeight: 'bold',
+    color: 'black',
+    verticalAlign: 'middle'
+  });
+    cellProperties.type = 'numeric';
+    cellProperties.format = '0%';
+    if (value != '') {
+        if (value > .84) {td.style.background = '#00FF00';}
+        else if (value > .69) {td.style.background = '#FFFF00';}
+        else if (value == 0) {td.style.background = '#FF0000'; }
+        else {td.style.background = '#FF0000'; }
+    }
+};
+var inputRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+    Handsontable.renderers.TextRenderer.apply(this, arguments);
+    grid = $('#hot').handsontable('getInstance');
+    questionData = grid.getDataAtCol(col);
+    $(td).css({
+    fontWeight: 'bold',
+    //height: '30px',
+    verticalAlign: 'middle'
+    });
+    if (col < num_mc + 2) {
+        if (value == questionData[0]) {td.style.color = 'green';}
+        else {td.style.color = '#FF0000';}
+    }
+    else if (col > (num_mc + 2)) {
+        var answer = parseInt(value,10); var pts = parseInt(questionData[1],10);
+        if (answer/pts > .79) {td.style.color = 'green';}
+        else {td.style.color = '#FF0000';}
+    }
+};
+
+var answerPercentRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+    Handsontable.renderers.NumericRenderer.apply(this, arguments);
+    grid = $('#hot').handsontable('getInstance');
+    questionData = grid.getDataAtCol(col);
+    $(td).css({
+        color: 'black',
+    });
+    if (questionData[0] != '' && value != '' && col < num_mc + 2 && row == (parseInt(questionData[0]) + 2)) {
+        {td.style.background = '#00FF00';}
+    }
+    
+};
+/* 
+ * Set Column data
+ */
+var columns = [
+    {data: 0, readOnly: true, renderer: firstColsRenderer},
+    {data: 2, readOnly: true, renderer: firstColsRenderer},
+]
+for (var a = 3; a < num_mc + 3; a++) {
+    columns.push({data: a});
+}
+columns.push({data: num_mc + 3, readOnly: true});
+for (var a = (num_mc + 4); a < (total_questions + 4); a++) {
+    columns.push({data: a });
+}
+columns.push({data: total_questions + 4, readOnly: true});
+
+/* 
+ * Set Column width
+ */
+ var colW = [200];
+ for (var a = 1; a < total_questions + 3; a++) colW.push(50);
+
+function calcMCAvg(questionData, sRow, sCol, value) {
+    var correct_answer = questionData[0];
+    //console.log(correct_answer);
+    if (correct_answer == '') {
+        for (var a=2; a <= mc_answers + 3; a++) {
+            data[a][sCol] = '';
+        }
+        return;
+    }
+    var colLength = questionData.length;
+    var correct = 0.0;
+    var total = 0.0;
+    var answers_percent = [];
+    for (var a=0; a <= mc_answers; a++) {
+        answers_percent.push(0);
+    }
+    for (var a = (4 + num_answer_rows); a < colLength; a++) {
+        if (questionData[a] != "") {
+            total += 1;
+            var input = questionData[a];
+            answers_percent[parseFloat(input)] += 1;
+        }
+        if (questionData[a] == questionData[0]) correct += 1;
+    }
+    if (total == 0) {
+        for (var a=2; a <= mc_answers + 2; a++) {
+            data[a][sCol] = '';
+        }
+        data[num_answer_rows + 3][sCol] = '';
+    }
+    else {
+
+         if (isNaN(correct/total)) data[num_answer_rows + 3][sCol] = .0;
+         else data[num_answer_rows + 3][sCol] = (correct/total);
+         var aPercent = [];
+         for (var a = 0; a < answers_percent.length; a++) {
+            aPercent[a] = (answers_percent[a]/total);
+        }
+        for (var a=0; a <= mc_answers; a++) {
+            data[a + 2][sCol] = aPercent[a];
+        }
+    }
+};
+
+function calcORAvg(questionData, sRow, sCol, value) {
+    var colLength = questionData.length;
+    var pts_value = parseInt(questionData[1]);
+    var possible_points = 0;
+    var total_points = 0;
+    var total = 0;
+    if (pts_value == '') {
+        for (var a=2; a <= or_points + 2; a++) {
+            data[a][sCol] = '';
+        }
+        return;
+    }
+    var answers_percent = [];
+    for (var a=0; a <= or_points; a++) {
+        answers_percent.push(0);
+    }
+    for (var a = (4 + num_answer_rows); a < colLength; a++) {
+        if (questionData[a] != "") {
+            total += 1;
+            var input = parseInt(questionData[a]);
+            answers_percent[input] += 1;
+            total_points += input; 
+        }
+    }
+    if (total == 0) {
+        for (var a=2; a <= or_points + 2; a++) {
+            data[a][sCol] = '';
+        }
+        data[num_answer_rows + 3][sCol] = '';
+    }
+    else {
+        //console.log(total_points + " / " + total + " / " + pts_value)
+        if (isNaN((total_points/total))) data[num_answer_rows + 3][sCol] = 0;
+        else data[num_answer_rows + 3][sCol] = ((total_points/total) / pts_value);
+        var aPercent = [];
+        for (var a = 0; a < answers_percent.length; a++) {
+            aPercent[a] = (answers_percent[a]/total);
+        }
+        for (var a=0; a <= or_points; a++) {
+            data[a + 2][sCol] = aPercent[a];
+        }
+    }
+};
+
+function calcStudentAvg(sRow, sCol, value) {
+    var startAnswers = 3;
+    var onlyRightAnswers = grid.getDataAtRow(0).slice(startAnswers);
+    var pt_values = grid.getDataAtRow(1).slice(startAnswers);
+    var onlyStudentAnswers = grid.getDataAtRow(sRow).slice(startAnswers);
+    var numOfQuestions = onlyStudentAnswers.length;
+    var mcPercent = 0;
+    var or_points = 0;
+    var points = 0;
+    var total = 0;
+    var or_total = 0;
+    var orPercent = 0;
+    var hasMC = false;
+    var hasOR = false;
+    for (var a = 0; a < num_mc; a++) {
+        if (onlyStudentAnswers[a] != "") {
+            total += parseInt(pt_values[a]);
+            hasMC = true;
+        }
+        if ( onlyRightAnswers[a] != "" && onlyStudentAnswers[a] == onlyRightAnswers[a] ) {
+            points += parseInt(pt_values[a]);
+        }
+    }
+    if (total != 0) mcPercent = (points/total);
+    //console.log(points + " / " + total);
+    for (var a = (num_mc + 1); a < (total_questions + 1); a++) {
+        if ( onlyStudentAnswers[a] != "" && pt_values[a] != "" ) {
+            or_points += parseInt(onlyStudentAnswers[a]);
+            points += parseInt(onlyStudentAnswers[a]);
+            or_total += parseInt(pt_values[a]);
+            total += parseInt(pt_values[a]);
+            hasOR = true;
+        }
+    }
+    orPercent = (or_points/or_total);
+    //console.log(points + " / " + total);
+    if (total == 0) {
+        //grid.setDataAtCell(sRow, 1, "", "calc");
+        data[sRow][2] = "";
+        data[sRow][num_mc + 3] = "";
+        data[sRow][total_questions + 4] = "";
+    }
+    else {
+        var sPercent = (points/total);
+        if (isNaN(sPercent)) sPercent = 0;
+        //grid.setDataAtCell(sRow, 1, (sPercent + "%"), "calc");
+        data[sRow][2] = sPercent;
+        if (hasMC) data[sRow][num_mc + 3] = mcPercent;
+        if (hasOR) data[sRow][total_questions + 4] = orPercent;
+    }
+};
+var maxed = true
+  , resizeTimeout
+  , availableWidth
+  , availableHeight
+  , $window = $(window)
+  , $hot = $('#hot');
+
+var calculateSize = function () {
+  var offset = $hot.offset();
+  availableWidth = $window.width() - offset.left + $window.scrollLeft();
+  availableHeight = $window.height() - offset.top + $window.scrollTop();
+};
+$window.on('resize', calculateSize);
+
+var autosaveNotification;
+/* 
+ * Initialize Table
+ */
+$('#hot').handsontable({
+    data: data,
+    colHeaders: colHeaders,
+    minSpareRows: 0,
+    minSpareCols: 0,
+    fillHandle: false,
+    enterMoves: {row: 0, col: 1},
+    autoWrapRow: true,
+    columns: columns,
+    colWidths: colW,
+    fixedColumnsLeft: 2,        
+    fixedRowsTop: 4 + num_answer_rows,
+    enterBeginsEditing: false,
+    height: function () {
+    if (maxed && availableHeight === void 0) {
+        calculateSize();
+    }
+    return maxed ? availableHeight : 300;
+    },
+    cells: function (row, col, prop) {
+        var cellProperties = {}
+        // Answer % rows
+        if(row > 1 && row < num_answer_rows + 4 && col > 1) {
+            cellProperties.type = 'numeric';
+            cellProperties.format = '0%';
+            cellProperties.readOnly = true;
+            cellProperties.renderer = answerPercentRenderer;
+        }
+        // Averages column and rows
+        if ( (row > num_answer_rows + 3 && col == 1)  ) {
+            cellProperties.renderer = percentRenderer; 
+        }
+        if (row == num_answer_rows + 3 && col > 1) {
+            cellProperties.renderer = percentRenderer;    
+        }
+        if (row > (num_answer_rows + 3) && col > 1 && col < (total_questions + 3)) {
+            cellProperties.renderer = inputRenderer;
+        }
+        if (row > (num_answer_rows + 3) && (col == (num_mc + 2) || col == (total_questions + 3))) {
+            cellProperties.renderer = percentRenderer;
+        }
+        return cellProperties;
+    },
+    beforeChange: function (changes, source) {
+        grid = $('#hot').handsontable('getInstance');
+        
+        var sRow = changes[0][0];
+        if (sRow > num_answer_rows + 2) {
+            var sCol = changes[0][1];
+            questionData = grid.getDataAtCol(sCol - hidden_columns);
+            var answer = parseInt(changes[0][3]);
+            console.log(answer);
+            if (sCol < num_mc + 2) {
+                if (answer > mc_answers) changes.splice(0, 1); //gently don't accept the word "foo" (remove the change at index i)
+            }
+            else if (sCol > num_mc + 2) {
+                console.log(answer);
+                console.log(questionData[1]);
+                if (answer > parseInt(questionData[1])) changes.splice(0,1);
+            }
+        }
+    },
+    afterChange: function (changes, source) {
+        if (source === 'loadData' ) {
+            console.log(source);
+            /*for (var a = 0; a < data.length; a++) {
+                for (var b = 0; b < data[a].length; b++) {
+                    if (a > num_answer_rows + 2) {
+                        
+                        grid = $('#hot').handsontable('getInstance');
+                        questionData = grid.getDataAtCol(b - hidden_columns);
+                        var answer = data[a][b];
+                        if (b < num_mc + 3) {                            
+                            calcMCAvg(questionData, a, b, answer);
+                        }
+                        else {
+                            calcORAvg(questionData, a, b, answer);
+                        }
+                        calcStudentAvg(a, b, answer);
+                        grid.render();
+                    }
+                }
+            }*/
+            return; 
+        }
+        if (changes && source != 'calc') {
+            var sRow = changes[0][0];
+            if (sRow > num_answer_rows + 2) {
+                var sCol = changes[0][1];
+                var answer = changes[0][3];
+                grid = $('#hot').handsontable('getInstance');
+                questionData = grid.getDataAtCol(sCol - hidden_columns);
+                if (sCol < num_mc + 3) calcMCAvg(questionData, sRow, sCol, answer);
+                else calcORAvg(questionData, sRow, sCol, answer);
+                calcStudentAvg(sRow, sCol, answer);
+                grid.render();
+            }
+        }
+        
+        clearTimeout(autosaveNotification);
+        console.log("AJAX");
+        $.ajax({
+            url: "#",
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            type: "POST",
+            data: JSON.stringify(grid.getData()), //contains changed cells' data
+            complete: function (data) {
+              console.log('Autosaved (' + changes.length + ' cell' + (changes.length > 1 ? 's' : '') + ')');
+              autosaveNotification = setTimeout(function () {
+                console.log('Changes will be autosaved');
+              }, 1000);
+            }
+        });
+    
+    }
+});
+/* 
+ * Add styling to the table
+ */
+$('#hot').addClass('table');
+$('#hot table').addClass('table-striped'); 
+$('#hot table').addClass('table-bordered');
+
+
+
+</script>
+{% endblock %}

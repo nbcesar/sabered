@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block style_block %}
+    <link href="/static/css/jquery.handsontable.full.css" rel="stylesheet" />
+    <link href="/static/css/jquery.handsontable.bootstrap.css" rel="stylesheet" />
+
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6 main center">
+            <h3>{{test.test_name}}</h3>
+        </div>
+        <div class="col-md-6">
+            <a href="{{ url_for('analysis', test_id=test_id) }}" class="btn btn-success">Analysis</a>
+            <a href="{{ url_for('list_tests') }}" class="btn btn-info">Home</a>
+        </div>
+    </div> <!-- First Row -->
+    <div class="row">
+        <div class="col-md-4">
+            <h4 class="center">Multiple Choice</h4>
+            <div id="hotMC" class="handsontable" style="overflow: scroll; margin: 0 auto;"></div>
+        </div> 
+        <div class="col-md-4">
+            <h4 class="center">Open Response</h4> 
+            <div id="hotOR" class="handsontable" style="overflow: scroll; margin: 0 auto;"></div>
+        </div>
+        <div class="col-md-4">
+            <h4 class="center">Student Details</h4> 
+            <div id="hotStudent" class="handsontable" style="overflow: scroll; margin: 0 auto;"></div>
+        </div> 
+    </div>
+</div>
+{% endblock content %}
+
+
+{% block tail_script %}
+
+<script>
+var mc_data = {{mc_data|safe}};
+var or_data = {{or_data|safe}};
+var mcgrid = $('#hotMC').handsontable('getInstance');
+
+var autosaveNotification;
+
+var firstColsRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+  Handsontable.renderers.TextRenderer.apply(this, arguments);
+  $(td).css({
+    fontWeight: 'bold',
+    color: 'black',
+    verticalAlign: 'middle',
+  });
+};
+
+var headerRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+  Handsontable.renderers.TextRenderer.apply(this, arguments);
+  $(td).css({
+    fontWeight: 'bold',
+    color: 'black',
+    verticalAlign: 'middle',
+  });
+  cellProperties.readOnly = true;
+};
+
+var mccolumns = [
+        {data: 0, readOnly: true, renderer: firstColsRenderer},
+        {data: 1},
+        {data: 2}
+]
+var orcolumns = [
+        {data: 0, readOnly: true, renderer: firstColsRenderer},
+        {data: 1}
+]
+
+var maxed = true
+  , resizeTimeout
+  , availableWidth
+  , availableHeight
+  , $window = $(window)
+  , $hotOR = $('#hotOR')
+  , $hotMC = $('#hotMC');
+
+var calculateSize = function () {
+  var offset = $hotMC.offset();
+  availableWidth = $window.width() - offset.left + $window.scrollLeft();
+  availableHeight = $window.height() - offset.top + $window.scrollTop();
+};
+$window.on('resize', calculateSize);
+
+$('#hotMC').handsontable({
+    data: mc_data,
+    colWidths: [150,85,65],
+    minSpareRows: 0,
+    minSpareCols: 0,
+    fixedRowsTop: 1,
+    contextMenu: false,
+    //colHeaders: ["Multiple Choice", "Point Value", "Answer"],
+    columns: mccolumns,
+    minSpareRows: 0,
+    minSpareCols: 0,
+    enterMoves: {row: 0, col: 1},
+    autoWrapRow: true,
+    enterBeginsEditing: false,
+    cells: function (row, col, prop) {
+        var cellProperties = {}
+        if(row == 0 ) {
+            cellProperties.renderer = headerRenderer;
+        }
+        
+        return cellProperties;
+    },
+    height: function () {
+    if (maxed && availableHeight === void 0) {
+        calculateSize();
+    }
+    return maxed ? availableHeight : 300;
+    },
+    /*width: function () {
+        if (maxed && availableWidth === void 0) {
+          calculateSize();
+        }
+        return maxed ? availableWidth : 310;
+    },*/
+    afterChange: function (changes, source) {
+        if (source === 'loadData' ) {
+            return; 
+        }
+        clearTimeout(autosaveNotification);
+        console.log("AJAX");
+        var mcgrid = $('#hotMC').handsontable('getInstance');
+        $.ajax({
+            url: "#",
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            type: "POST",
+            data: JSON.stringify(mcgrid.getData()), //contains changed cells' data
+            complete: function (data) {
+              console.log('Autosaved (' + changes.length + ' cell' + (changes.length > 1 ? 's' : '') + ')');
+              autosaveNotification = setTimeout(function () {
+                console.log('Changes will be autosaved');
+              }, 1000);
+            }
+        });
+    }
+});
+
+$('#hotOR').handsontable({
+    data: or_data,
+    colWidths: [200,100],
+    minSpareRows: 0,
+    minSpareCols: 0,
+    fixedRowsTop: 1,
+    contextMenu: false,
+    //colHeaders: ["Open Response", "Point Value"],
+    columns: orcolumns,
+    minSpareRows: 0,
+    minSpareCols: 0,
+    enterMoves: {row: 0, col: 1},
+    autoWrapRow: true,
+    enterBeginsEditing: false,
+    cells: function (row, col, prop) {
+        var cellProperties = {}
+        if(row == 0 ) {
+            cellProperties.renderer = headerRenderer;
+        }
+        
+        return cellProperties;
+    },
+    height: function () {
+    if (maxed && availableHeight === void 0) {
+        calculateSize();
+    }
+    return maxed ? availableHeight : 300;
+    },
+    /*width: function () {
+        if (maxed && availableWidth === void 0) {
+          calculateSize();
+        }
+        return maxed ? availableWidth : 310;
+    },*/
+    afterChange: function (changes, source) {
+        if (source === 'loadData' ) {
+            return; 
+        }
+        clearTimeout(autosaveNotification);
+        console.log("AJAX");
+        var orgrid = $('#hotOR').handsontable('getInstance');
+        $.ajax({
+            url: "#",
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            type: "POST",
+            data: JSON.stringify(orgrid.getData()), //contains changed cells' data
+            complete: function (data) {
+              console.log('Autosaved (' + changes.length + ' cell' + (changes.length > 1 ? 's' : '') + ')');
+              autosaveNotification = setTimeout(function () {
+                console.log('Changes will be autosaved');
+              }, 1000);
+            }
+        });
+    }
+});
+
+$('#hotMC').addClass('table');
+$('#hotMC table').addClass('table-striped'); 
+$('#hotMC table').addClass('table-bordered');
+$('#hotOR').addClass('table');
+$('#hotOR table').addClass('table-striped'); 
+$('#hotOR table').addClass('table-bordered');
+
+var student_data = {{student_data|safe}};
+
+var grid;
+var autosaveNotification;
+
+var firstColsRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+  Handsontable.renderers.TextRenderer.apply(this, arguments);
+  $(td).css({
+    fontWeight: 'bold',
+    color: 'black',
+    verticalAlign: 'middle',
+  });
+};
+
+var headerRenderer = function (instance, td, row, col, prop, value, cellProperties) {
+  Handsontable.renderers.TextRenderer.apply(this, arguments);
+  $(td).css({
+    fontWeight: 'bold',
+    color: 'black',
+    verticalAlign: 'middle',
+  });
+  cellProperties.readOnly = true;
+};
+
+var studentcolumns = [
+        {data: 0},
+        {data: 1},
+        {data: 2},
+        {data: 3}
+]
+
+var maxed = true
+  , resizeTimeout
+  , availableWidth
+  , availableHeight
+  , $window = $(window)
+  , $hotStudent = $('#hotStudent');
+
+var calculateSize = function () {
+  var offset = $hotStudent.offset();
+  availableWidth = $window.width() - offset.left + $window.scrollLeft();
+  availableHeight = $window.height() - offset.top + $window.scrollTop();
+};
+$window.on('resize', calculateSize);
+
+$('#hotStudent').handsontable({
+    data: student_data,
+    colWidths: [35,150,50,75],
+  //colHeaders: ,
+    minSpareRows: 0,
+    minSpareCols: 0,
+    fixedRowsTop: 1,
+    contextMenu: false,
+    columns: studentcolumns,
+    //colHeaders: ["Student","Period", "Intervention"],
+    minSpareRows: 0,
+    minSpareCols: 0,
+    enterMoves: {row: 0, col: 1},
+    autoWrapRow: true,
+    enterBeginsEditing: false,
+    cells: function (row, col, prop) {
+        var cellProperties = {}
+        if(row == 0 ) {
+            cellProperties.renderer = headerRenderer;
+        }
+        
+        return cellProperties;
+    },
+    height: function () {
+    if (maxed && availableHeight === void 0) {
+        calculateSize();
+    }
+    return maxed ? availableHeight : 300;
+    },
+    /*width: function () {
+        if (maxed && availableWidth === void 0) {
+          calculateSize();
+        }
+        return maxed ? availableWidth : 310;
+    },*/
+    afterChange: function (changes, source) {
+        if (source === 'loadData' ) {
+            return; 
+        }
+        clearTimeout(autosaveNotification);
+        console.log("AJAX");
+        var studentgrid = $('#hotStudent').handsontable('getInstance');
+        $.ajax({
+            url: "#",
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            type: "POST",
+            data: JSON.stringify(studentgrid.getData()), //contains changed cells' data
+            complete: function (data) {
+              console.log('Autosaved (' + changes.length + ' cell' + (changes.length > 1 ? 's' : '') + ')');
+              autosaveNotification = setTimeout(function () {
+                console.log('Changes will be autosaved');
+              }, 1000);
+            }
+        });
+    }
+});
+
+
+$('#hotStudent').addClass('table');
+$('#hotStudent table').addClass('table-striped'); 
+$('#hotStudent table').addClass('table-bordered');
+
+</script>
+
+{% endblock %}
+

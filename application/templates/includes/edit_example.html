@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h3>Edit Tests</h3>
+    <form id="edit-test" class="well form-horizontal"
+          action="{{ url_for('edit_test', test_id=test.key.id()) }}" method="post" accept-charset="utf-8">
+        <fieldset>
+            {{ form.hidden_tag() }}
+            <input type="hidden" name="mode" value="edit" />
+            <div class="control-group">
+                <div class="control-label">{{ form.test_name.label }}</div>
+                <div class="controls">
+                    {{ form.test_name|safe }}
+                    {% if form.test_name.errors %}
+                        <ul class="errors">
+                            {% for error in form.test_name.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-label">{{ form.num_mc.label }}</div>
+                <div class="controls">
+                    {{ form.num_mc|safe }}
+                    {% if form.num_mc.errors %}
+                        <ul class="errors">
+                            {% for error in form.num_mc.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-label">{{ form.num_or.label }}</div>
+                <div class="controls">
+                    {{ form.num_or|safe }}
+                    {% if form.num_or.errors %}
+                        <ul class="errors">
+                            {% for error in form.num_or.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-label">{{ form.num_students.label }}</div>
+                <div class="controls">
+                    {{ form.num_students|safe }}
+                    {% if form.num_students.errors %}
+                        <ul class="errors">
+                            {% for error in form.num_students.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <input class="btn btn-primary" type="submit" value="Save Changes"/>
+                    <a class="btn cancel" href="{{ url_for('list_examples') }}">Cancel</a>
+                </div>
+            </div>
+        </fieldset>
+    </form>
+{% endblock content %}
